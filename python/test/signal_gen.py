@@ -41,8 +41,28 @@ GPIO.setup(BTN1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
 GPIO.setup(BTN2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
 GPIO.setup(BTN3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
 
+# Color bar generator process
+smpte_bar_process = None
+
+
 # Horizontal input must be a multiple of 8
 def change_resolution(n, m, framerate):
+    if smpte_bar_process is not None:
+        # Terminate Color bar process and restart with new resolution
+        smpte_bar_pocess.terminate()
+        smpte_bar_pocess.wait()
+    #smpte_bar_pocess = subprocess.Popen(f'ffmpeg -f lavfi -i smptebars=duration=10:size={n}x{m}:rate={framerate} -f matroska - | ffplay -fs -', shell=True)
+    # Build string manually since F-strings have character limitations
+    cmd = f'ffmpeg -re -f lavfi -i \"smptebars=rate={framerate}:size={n}x{m}\" '
+    cmd += '-vf drawtext=\"text=\''
+    cmd += f'{n}x{m} @ {framerate}fps '
+    cmd += '%{localtime\\:%X}\''
+    cmd += f':rate={framerate}:x=(w-tw)/2:y=(h-lh)/2:fontsize=26:fontcolor=white:box=1:boxcolor=black:boxborderw=5\" -f matroska - | ffplay -'
+
+    # Execute Command
+    smpte_bar_pocess = subprocess.Popen(cmd, shell=True)
+
+    # Set up strings for resolution change
     mode = f'{n}x{m}_{framerate}.00'
     cvt_data = f'{n} {m} {framerate}'
 
@@ -71,9 +91,9 @@ def change_resolution(n, m, framerate):
         output = subprocess.check_output('xrandr -s ' + mode, shell=True)
         output = output.decode('utf-8')
 
-    time.sleep(5)
+    time.sleep(10)
 
-    output = subprocess.check_output('xrandr -s 1600x1200 -r 60', shell=True)
+    output = subprocess.check_output('xrandr -s 1280x1024', shell=True)
     output = output.decode('utf-8')
 
 # Cursor State (-1 for view, 1 for edit)
